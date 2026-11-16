@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Marble Desk</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #12151f; overflow: hidden; font-family: system-ui, sans-serif; }
+  canvas { display: block; }
+  #info { position: fixed; left: 12px; top: 10px; color: #cfd6ee; font-size: 13px; line-height: 1.45;
+          background: rgba(10,12,20,.6); padding: 8px 12px; border-radius: 10px; max-width: 320px; }
+  #info b { color: #fff; }
+  #xrnote { position: fixed; left: 12px; bottom: 64px; color: #8f98b8; font-size: 12px; max-width: 320px; }
+</style>
+</head>
+<body>
+<div id="info"><b>Marble Desk</b><br>
+  Pinch a piece from the tray, place it, then press <b>Drop</b>. Guide the marble into the glowing cup.<br>
+  <span id="mode">Desktop preview: drag with the mouse. In Meta Quest, tap Enter AR and use your hands.</span></div>
+<div id="xrnote"></div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
