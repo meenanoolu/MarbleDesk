@@ -5,7 +5,7 @@ import SOLUTIONS from './solutions.json' with { type: 'json' };
 const RAW = [
   {
     name: 'First Roll',
-    hint: 'Pinch a ramp from the right tray and drop it under the marble.',
+    hint: 'Pinch a ramp from the tray and place it under the marble.',
     start: { x: -0.15, y: 0.28 },
     goal: { x: 0.15, y: 0.02 },
     statics: [],

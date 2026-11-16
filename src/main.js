@@ -56,7 +56,7 @@ contactShadow.position.y = 0.001;
 diorama.add(contactShadow);
 
 // ---------------------------------------------------------------- helpers
-function textPlane(w, h, px = 256) {
+function textPlane(w, h, px = 512) {
   const c = document.createElement('canvas');
   c.width = px; c.height = Math.round(px * h / w);
   const tex = new THREE.CanvasTexture(c);
@@ -67,16 +67,32 @@ function textPlane(w, h, px = 256) {
   mesh.userData.set = (lines, opts = {}) => {
     const g = c.getContext('2d');
     g.clearRect(0, 0, c.width, c.height);
-    if (opts.bg) { g.fillStyle = opts.bg; g.beginPath(); g.roundRect(4, 4, c.width - 8, c.height - 8, 20); g.fill(); }
+    if (opts.bg) { g.fillStyle = opts.bg; g.beginPath(); g.roundRect(6, 6, c.width - 12, c.height - 12, 24); g.fill(); }
     g.fillStyle = opts.color || '#ffffff';
     g.textAlign = opts.align || 'center';
     g.textBaseline = 'middle';
     const arr = Array.isArray(lines) ? lines : [lines];
-    const size = opts.size || Math.floor(c.height / (arr.length + 0.5));
+    const maxWidth = c.width - 40;
+    const wrapped = [];
     arr.forEach((ln, i) => {
-      g.font = `${i === 0 && opts.boldFirst ? '700 ' : '500 '}${size}px system-ui, sans-serif`;
-      const x = g.textAlign === 'left' ? 20 : c.width / 2;
-      g.fillText(ln, x, (c.height / (arr.length + 1)) * (i + 1));
+      const fontSize = opts.size || Math.floor(c.height / (arr.length + 1.2));
+      g.font = `${i === 0 && opts.boldFirst ? '700 ' : '500 '}${fontSize}px system-ui, sans-serif`;
+      const words = String(ln).split(' ');
+      let line = '';
+      for (const word of words) {
+        const test = line ? line + ' ' + word : word;
+        if (g.measureText(test).width > maxWidth && line) {
+          wrapped.push({ text: line, bold: i === 0 && opts.boldFirst, size: fontSize });
+          line = word;
+        } else line = test;
+      }
+      if (line) wrapped.push({ text: line, bold: i === 0 && opts.boldFirst, size: fontSize });
+    });
+    const lineH = Math.min(c.height / (wrapped.length + 1), (opts.size || 40) * 1.15);
+    wrapped.forEach((item, i) => {
+      g.font = `${item.bold ? '700 ' : '500 '}${item.size}px system-ui, sans-serif`;
+      const x = g.textAlign === 'left' ? 24 : c.width / 2;
+      g.fillText(item.text, x, (c.height / (wrapped.length + 1)) * (i + 1));
     });
     tex.needsUpdate = true;
   };
@@ -185,7 +201,7 @@ marbleMesh.castShadow = true;
 marbleMesh.visible = false;
 diorama.add(marbleMesh);
 
-const hud = textPlane(0.38, 0.09, 1024);
+const hud = textPlane(0.42, 0.12, 1024);
 hud.position.set(0, H + 0.065, 0);
 uiGroup.add(hud);
 
