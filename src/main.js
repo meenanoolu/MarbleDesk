@@ -201,9 +201,29 @@ marbleMesh.castShadow = true;
 marbleMesh.visible = false;
 diorama.add(marbleMesh);
 
-const hud = textPlane(0.42, 0.12, 1024);
-hud.position.set(0, H + 0.065, 0);
+const hud = textPlane(0.42, 0.13, 1024);
+hud.position.set(0, H + 0.07, 0);
 uiGroup.add(hud);
+
+// simple progress bar
+const progressBg = new THREE.Mesh(
+  new THREE.PlaneGeometry(0.28, 0.012),
+  new THREE.MeshBasicMaterial({ color: 0x2a3348, transparent: true, opacity: 0.8 }));
+progressBg.position.set(0, H + 0.012, 0.001);
+uiGroup.add(progressBg);
+const progressFill = new THREE.Mesh(
+  new THREE.PlaneGeometry(0.28, 0.012),
+  new THREE.MeshBasicMaterial({ color: 0x57ffb0 }));
+progressFill.position.set(-0.14, H + 0.012, 0.002);
+progressFill.scale.x = 0;
+uiGroup.add(progressFill);
+
+function updateProgress() {
+  const total = LEVELS.length - 1;
+  const p = S.levelIndex >= total ? 1 : (S.levelIndex + 1) / total;
+  progressFill.scale.x = p;
+  progressFill.position.x = -0.14 + (0.28 * p) / 2;
+}
 
 // win particles
 const winParticles = new THREE.Group();
@@ -241,8 +261,10 @@ function remaining() {
 
 function setHud(sub) {
   const lv = LEVELS[S.levelIndex];
-  const title = lv.sandbox ? 'Sandbox  ·  Build freely' : `Level ${S.levelIndex + 1}/${LEVELS.length - 1}  ·  ${lv.name}`;
-  hud.userData.set([title, sub ?? lv.hint], { bg: 'rgba(8,12,28,.82)', boldFirst: true, size: 42 });
+  const total = LEVELS.length - 1;
+  const title = lv.sandbox ? 'Sandbox  ·  Build freely' : `Level ${S.levelIndex + 1}/${total}  ·  ${lv.name}`;
+  hud.userData.set([title, sub ?? lv.hint], { bg: 'rgba(8,12,28,.82)', boldFirst: true, size: 40 });
+  updateProgress();
 }
 function flash(text, ms = 2800) { S.msg = text; S.msgUntil = performance.now() + ms; setHud(text); }
 
@@ -317,6 +339,7 @@ function loadLevel(i) {
 
   updateTrayLabels();
   setHud();
+  updateProgress();
 }
 
 // ---------------------------------------------------------------- buttons
@@ -325,23 +348,57 @@ function buildButtons() {
     ['Drop', 0x3ddc84, () => dropMarble()],
     ['Reset', 0xffa94d, () => resetRun(true)],
     ['Hint', 0xffe066, () => showHint()],
+    ['Share', 0xc084fc, () => shareLayout()],
     ['Prev', 0x74c0fc, () => loadLevel(S.levelIndex - 1)],
     ['Next', 0x74c0fc, () => loadLevel(S.levelIndex + 1)],
     ['Move', 0xb197fc, () => { S.placing = true; flash('Pinch on your desk to move the frame'); }],
   ];
   defs.forEach(([name, color, action], i) => {
-    const y = 0.275 - i * 0.052;
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.014, 28),
-      new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35, roughness: 0.35 }));
+    const y = 0.28 - i * 0.048;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.016, 28),
+      new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4, roughness: 0.3 }));
     m.rotation.x = Math.PI / 2;
-    m.position.set(-0.33, y, 0);
+    m.position.set(-0.34, y, 0);
     uiGroup.add(m);
-    const label = textPlane(0.075, 0.032, 160);
-    label.userData.set(name, { size: 50, align: 'left' });
+    const label = textPlane(0.08, 0.034, 160);
+    label.userData.set(name, { size: 48, align: 'left' });
     label.position.set(-0.26, y, 0.01);
     uiGroup.add(label);
-    S.buttons.push({ name, mesh: m, action, pos: new THREE.Vector3(-0.33, y, 0) });
+    S.buttons.push({ name, mesh: m, action, pos: new THREE.Vector3(-0.34, y, 0) });
   });
+}
+
+function encodeLayout() {
+  const pieces = [...S.placed.values()].map(({ piece }) => `${piece.type[0]}${Math.round(piece.x * 100)}${Math.round(piece.y * 100)}`);
+  return btoa(pieces.join('|')).replace(/=+$/, '');
+}
+function shareLayout() {
+  if (S.placed.size === 0) { flash('Place some pieces first, then Share.'); return; }
+  const code = encodeLayout();
+  navigator.clipboard?.writeText(code).catch(() => {});
+  flash(`Share code: ${code.slice(0, 18)}… (copied)`, 4500);
+}
+function loadFromCode(code) {
+  try {
+    const raw = atob(code);
+    const parts = raw.split('|').filter(Boolean);
+    const typeMap = { r: 'rampR', l: 'rampL', b: 'bumper', f: 'fan' };
+    for (const p of parts) {
+      const t = typeMap[p[0]];
+      if (!t) continue;
+      const nums = p.slice(1).match(/-?\d+/g);
+      if (!nums || nums.length < 2) continue;
+      const x = +nums[0] / 100, y = +nums[1] / 100;
+      const mesh = makePieceMesh(t);
+      piecesGroup.add(mesh);
+      const piece = { id: S.nextId++, type: t, x, y };
+      mesh.position.set(x, y, 0);
+      S.sim.addPiece(piece);
+      S.placed.set(piece.id, { piece, mesh });
+    }
+    updateTrayLabels();
+    flash('Layout loaded from code.');
+  } catch { flash('Invalid share code.'); }
 }
 
 function dropMarble() {
@@ -470,7 +527,10 @@ function placeDiorama(p) {
   S.placing = false;
   S.firstPlaceDone = true;
   sfx.placeDiorama();
-  flash('Frame placed on your desk. Pinch pieces from the right tray!', 3800);
+  // placement pulse
+  diorama.scale.set(1.08, 1.08, 1.08);
+  setTimeout(() => diorama.scale.set(1, 1, 1), 180);
+  flash('Frame locked to your desk. Pinch pieces from the tray!', 3800);
 }
 
 function onPinchStart(p) {
@@ -674,4 +734,4 @@ await initPhysics();
 buildButtons();
 loadLevel(0);
 renderer.setAnimationLoop(animate);
-window.__game = { S, loadLevel, pointers, dropMarble, onPinchStart, onPinchEnd, LEVELS };
+window.__game = { S, loadLevel, pointers, dropMarble, onPinchStart, onPinchEnd, LEVELS, loadFromCode, shareLayout };

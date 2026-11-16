@@ -8,6 +8,7 @@ Designed for short, satisfying sessions. 5 levels + sandbox.
 - Hands-first end-to-end (pinch to place frame, pieces, and buttons)
 - Seated / desk-optimized (airplane-seat test)
 - Purposeful passthrough: the real desk is the play surface
+- 8 levels + sandbox with share codes
 - Fast cold start, complete moment in under 10 minutes
 - Original core loop (not a wrapper)
 
