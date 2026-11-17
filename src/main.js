@@ -524,11 +524,14 @@ function nearest(list, pos, maxD) {
   return best;
 }
 
+let lastHitPos = null;
+
 function placeDiorama(p) {
   const head = new THREE.Vector3();
   renderer.xr.getCamera().getWorldPosition(head);
-  diorama.position.set(p.world.x, p.world.y - 0.005, p.world.z);
-  diorama.rotation.y = Math.atan2(head.x - p.world.x, head.z - p.world.z);
+  const pos = lastHitPos || p.world;
+  diorama.position.set(pos.x, pos.y - 0.004, pos.z);
+  diorama.rotation.y = Math.atan2(head.x - pos.x, head.z - pos.z);
   diorama.updateMatrixWorld(true);
   diorama.visible = true;
   table.position.copy(diorama.position); table.position.y -= 0.011;
@@ -537,11 +540,11 @@ function placeDiorama(p) {
   S.placing = false;
   S.firstPlaceDone = true;
   sfx.placeDiorama();
-  // lock pulse + ground ring flash
   diorama.scale.set(1.06, 1.06, 1.06);
-  groundRing.material.opacity = 0.65;
-  setTimeout(() => { diorama.scale.set(1, 1, 1); groundRing.material.opacity = 0; }, 280);
-  flash('Locked to your desk. Pinch a ramp from the tray.', 3600);
+  groundRing.material.opacity = 0.7;
+  setTimeout(() => { diorama.scale.set(1, 1, 1); groundRing.material.opacity = 0; }, 300);
+  flash(lastHitPos ? 'Locked to detected desk surface. Pinch a ramp.' : 'Locked to your desk. Pinch a ramp from the tray.', 3800);
+  lastHitPos = null;
 }
 
 function onPinchStart(p) {
@@ -633,7 +636,7 @@ function updatePointers() {
   }
 }
 
-// ---------------------------------------------------------------- XR session
+// ---------------------------------------------------------------- XR session + hit test
 const intro = new THREE.Group();
 const introText = textPlane(0.55, 0.22, 1024);
 introText.userData.set(['Pinch on your desk', 'to place the marble frame'], { bg: 'rgba(8,12,28,.88)', boldFirst: true, size: 52 });
@@ -641,7 +644,10 @@ intro.add(introText);
 intro.visible = false;
 scene.add(intro);
 
-renderer.xr.addEventListener('sessionstart', () => {
+let hitTestSource = null;
+let hitTestSourceRequested = false;
+
+renderer.xr.addEventListener('sessionstart', async () => {
   S.xr = true;
   const session = renderer.xr.getSession();
   S.opaque = session.environmentBlendMode === 'opaque';
@@ -658,6 +664,14 @@ renderer.xr.addEventListener('sessionstart', () => {
   intro.lookAt(head.x, intro.position.y, head.z);
   intro.visible = true;
   document.getElementById('info').style.display = 'none';
+
+  // request hit-test source for purposeful desk placement
+  try {
+    const viewerSpace = await session.requestReferenceSpace('viewer');
+    hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+    hitTestSourceRequested = true;
+    session.addEventListener('end', () => { hitTestSource = null; hitTestSourceRequested = false; });
+  } catch (e) { console.warn('Hit-test unavailable', e); }
 });
 renderer.xr.addEventListener('sessionend', () => {
   S.xr = false; S.placing = false;
@@ -666,11 +680,12 @@ renderer.xr.addEventListener('sessionend', () => {
   intro.visible = false;
   renderer.setClearColor(0x12151f, 1);
   document.getElementById('info').style.display = '';
+  hitTestSource = null;
 });
 
 (async () => {
   const xr = navigator.xr;
-  const features = ['hand-tracking', 'local-floor'];
+  const features = ['hand-tracking', 'local-floor', 'hit-test'];
   if (xr && await xr.isSessionSupported('immersive-ar').catch(() => false)) {
     document.body.appendChild(ARButton.createButton(renderer, { optionalFeatures: features }));
     document.getElementById('mode').textContent = 'Tap Enter AR, then pinch on your real desk to place the frame.';
@@ -685,6 +700,20 @@ const clock = new THREE.Clock();
 function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const now = performance.now();
+
+  // hit-test for desk placement
+  if (S.xr && S.placing && hitTestSource && renderer.xr.getSession()) {
+    const frame = renderer.xr.getFrame();
+    if (frame) {
+      const ref = renderer.xr.getReferenceSpace();
+      const results = frame.getHitTestResults(hitTestSource);
+      if (results.length) {
+        const pose = results[0].getPose(ref);
+        if (pose) lastHitPos = new THREE.Vector3(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
+      }
+    }
+  }
+
   updatePointers();
 
   const sim = S.sim;
