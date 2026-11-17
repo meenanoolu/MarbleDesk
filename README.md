@@ -6,10 +6,10 @@ Designed for short, satisfying sessions. 5 levels + sandbox.
 
 ## Why it fits Meta VR Start Competition
 - Hands-first end-to-end (pinch to place frame, pieces, and buttons)
-- Seated / desk-optimized (airplane-seat test)
-- Purposeful passthrough: the real desk is the play surface
-- 8 levels + sandbox with share codes
-- Fast cold start, complete moment in under 10 minutes
+- Seated / desk-optimized — the real desk is the play surface
+- Purposeful passthrough with grounding shadow and lock feedback
+- 8 levels + sandbox with shareable layouts
+- Fast cold start; Level 1 clears in under a minute
 - Original core loop (not a wrapper)
 
 ## Run

@@ -47,13 +47,19 @@ table.position.y = -0.011;
 table.receiveShadow = true;
 scene.add(table);
 
-// contact shadow under diorama for desk grounding
+// contact shadow + soft ground ring for desk grounding
 const contactShadow = new THREE.Mesh(
-  new THREE.CircleGeometry(0.32, 32),
-  new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18, depthWrite: false }));
+  new THREE.CircleGeometry(0.38, 40),
+  new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }));
 contactShadow.rotation.x = -Math.PI / 2;
 contactShadow.position.y = 0.001;
 diorama.add(contactShadow);
+const groundRing = new THREE.Mesh(
+  new THREE.RingGeometry(0.30, 0.36, 40),
+  new THREE.MeshBasicMaterial({ color: 0x57ffb0, transparent: true, opacity: 0.0, side: THREE.DoubleSide, depthWrite: false }));
+groundRing.rotation.x = -Math.PI / 2;
+groundRing.position.y = 0.002;
+diorama.add(groundRing);
 
 // ---------------------------------------------------------------- helpers
 function textPlane(w, h, px = 512) {
@@ -196,7 +202,7 @@ const sfx = {
 
 const marbleMesh = new THREE.Mesh(
   new THREE.SphereGeometry(MARBLE_R, 32, 20),
-  new THREE.MeshStandardMaterial({ color: 0xf0f4ff, metalness: 0.95, roughness: 0.08 }));
+  new THREE.MeshStandardMaterial({ color: 0xf0f4ff, metalness: 0.95, roughness: 0.08, emissive: 0x88aaff, emissiveIntensity: 0.15 }));
 marbleMesh.castShadow = true;
 marbleMesh.visible = false;
 diorama.add(marbleMesh);
@@ -229,14 +235,18 @@ function updateProgress() {
 const winParticles = new THREE.Group();
 diorama.add(winParticles);
 function spawnWinParticles(pos) {
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < 28; i++) {
     const p = new THREE.Mesh(
-      new THREE.SphereGeometry(0.004, 8, 6),
-      new THREE.MeshBasicMaterial({ color: i % 2 ? 0x57ffb0 : 0xffd166, transparent: true }));
+      new THREE.SphereGeometry(0.0035 + Math.random() * 0.003, 8, 6),
+      new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0xffd166 : 0x57ffb0, transparent: true }));
     p.position.set(pos.x, pos.y, 0);
-    p.userData.vel = new THREE.Vector3((Math.random() - 0.5) * 0.4, Math.random() * 0.5 + 0.2, (Math.random() - 0.5) * 0.3);
-    p.userData.life = 1.2;
+    p.userData.vel = new THREE.Vector3((Math.random() - 0.5) * 0.5, Math.random() * 0.6 + 0.15, (Math.random() - 0.5) * 0.35);
+    p.userData.life = 1.4;
     winParticles.add(p);
+  }
+  if (S.goalGroup) {
+    S.goalGroup.scale.set(1.4, 1.4, 1.4);
+    setTimeout(() => { if (S.goalGroup) S.goalGroup.scale.set(1, 1, 1); }, 220);
   }
 }
 
@@ -373,10 +383,10 @@ function encodeLayout() {
   return btoa(pieces.join('|')).replace(/=+$/, '');
 }
 function shareLayout() {
-  if (S.placed.size === 0) { flash('Place some pieces first, then Share.'); return; }
+  if (S.placed.size === 0) { flash('Place pieces first, then Share.'); return; }
   const code = encodeLayout();
   navigator.clipboard?.writeText(code).catch(() => {});
-  flash(`Share code: ${code.slice(0, 18)}… (copied)`, 4500);
+  flash(`Copied share code (${S.placed.size} pieces)`, 4000);
 }
 function loadFromCode(code) {
   try {
@@ -527,10 +537,11 @@ function placeDiorama(p) {
   S.placing = false;
   S.firstPlaceDone = true;
   sfx.placeDiorama();
-  // placement pulse
-  diorama.scale.set(1.08, 1.08, 1.08);
-  setTimeout(() => diorama.scale.set(1, 1, 1), 180);
-  flash('Frame locked to your desk. Pinch pieces from the tray!', 3800);
+  // lock pulse + ground ring flash
+  diorama.scale.set(1.06, 1.06, 1.06);
+  groundRing.material.opacity = 0.65;
+  setTimeout(() => { diorama.scale.set(1, 1, 1); groundRing.material.opacity = 0; }, 280);
+  flash('Locked to your desk. Pinch a ramp from the tray.', 3600);
 }
 
 function onPinchStart(p) {
